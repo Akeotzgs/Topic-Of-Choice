@@ -1,0 +1,46 @@
+library(BiocManager) # initialize library for use
+library(phyloseq) # initialize library for use
+library(dada2) # initialize library for use
+library(tidyverse) # initialize library for use
+library(DESeq2) # initialize library for use
+path <- "~/Topic of Choice/Lake Michigan Data/Lake_Michigan_Data" # Set path for the programs to use and find data
+list.files(path) # List files in the path to confrim it is correct
+fnFs <- sort(list.files(path, pattern=".fastq", full.names = TRUE)) # Sort and assign the files in the path based on their type, that way Forward and Reverse reads can be manipulated seperately.  
+sample.names <- sapply(strsplit(basename(filtFs), ".fastq"), `[`, 1) # General set the sample names for each file, done seperately to ensure they are constant throughout and match each forward and reverse read.
+plotQualityProfile(fnFs[1:10]) # Plot quality profile of the first 10 samples to determine where control parameters should be set. 
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz")) # Make a seperate assignment for filtered fastq files of forward reads, assign them a general ending name keeping the sample name constant as previously described. Make a subdirectory for filtered files. 
+names(filtFs) <- sample.names # Place the sample names onto the associated prepared filtered files
+out <- filterAndTrim(fnFs, filtFs, truncLen=c(450), maxN=0, maxEE=c(2), truncQ=2, rm.phix=TRUE, compress=TRUE, multithread=FALSE) # Standard filtering parameters with the deviation being in the truncLen based on the graphs we had previously made. 
+errF <- learnErrors(filtFs) # Initiates the DADA2 algorithm to learn the error model from the data for later use in the pipeline. Takes about 3 hours for full data set.
+plotErrors(errF, nominalQ=TRUE) # Plot the errors to confirm that the program ran correctly and check with standard models.
+dadaFs <- dada(filtFs, err=errF) # Runs the core sample inference algorithm for DADA2 and puts it into a named dadaF object.
+# Since the data only had mono file reads "forward" we do not need to merge anything
+seqtab <- makeSequenceTable(dadaFs) # Sets up the ASV table
+dim(seqtab) # Give dimentions
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", verbose=TRUE) # Runs the Chimeric sequence removal software within DADA2
+dim(seqtab.nochim) # Give dimentions
+sum(seqtab.nochim)/sum(seqtab) # Prints the non-chimeric sequence reads. Can be used to determine the percentage of reads that are chimeric. 
+taxa <- assignTaxonomy(seqtab.nochim, "silva_nr_v132_train_set.fa.gz") # Starts the assignTaxonomy system within DADA2 this will not assign species but will assign up to it.
+taxa <- addSpecies(taxa, "silva_species_assignment_v132.fa.gz") # This additional portion will assign species when able, however it requires high identiy percentage and is uncommon for this data. 
+taxa.print <- taxa # Sets up a printable table for the taxa data
+rownames(taxa.print) <- NULL # nulls out the rownames for viewability
+head(taxa.print) # Print the first 10
+samples.out <- rownames(seqtab.nochim) # Set name for data frame
+rownames(samdf) <- samples.out # Give name in the data frame
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), # Make the phyloseq object from the DADA2 output
+               tax_table(taxa)) # Tell it what taxa table to use
+ps <- prune_samples(sample_names(ps) != "", ps) 
+dna <- Biostrings::DNAStringSet(taxa_names(ps)) # Make the names more readable and convienent for graphs and tables
+names(dna) <- taxa_names(ps) # Make the names more readable and convienent for graphs and tables
+ps <- merge_phyloseq(ps, dna) # Make the names more readable and convienent for graphs and tables
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps))) # Make the names more readable and convienent for graphs and tables
+ps # Print it out
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20] # Set up a dataset containing the top 20 taxa identities within the sample. 
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU)) # transform the data for graphing
+ps.top20 <- prune_taxa(top20, ps.top20) # transform the data for graphing
+plot_bar(ps.top20, x="Phylum", fill="Family") # Plot the data for the top 20 with Phylum sorting/identification on the X axis and color for different families.
+plot_bar(ps.top20, x="Genus", fill="Family") + facet_wrap(~Phylum, scales="free_x") # Plot the data for the top 20 with Genus sorting/identification on the X axis, then with those sorted into phylum, with color for different families.
+top50 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:50] # Set up a dataset containing the top 50 taxa identities within the sample. 
+ps.top50 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU)) # transform the data for graphing
+ps.top50 <- prune_taxa(top50, ps.top50) # transform the data for graphing
+plot_bar(ps.top50, x="Genus", fill="Family") + facet_wrap(~Phylum, scales="free_x") # Plot the data for the top 50 with Genus sorting/identification on the X axis, then with those sorted into phylum, with color for different families.
