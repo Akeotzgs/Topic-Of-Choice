@@ -50,4 +50,9 @@ top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Phylum", fill="Family")
+plot_bar(ps.top20, x="Genus", fill="Family") + facet_wrap(~Phylum, scales="free_x")
+top50 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:50]
+ps.top50 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top50 <- prune_taxa(top50, ps.top50)
+plot_bar(ps.top50, x="Genus", fill="Family") + facet_wrap(~Phylum, scales="free_x")
 view(top20)
