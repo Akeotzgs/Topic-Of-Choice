@@ -21,7 +21,7 @@ dadaFs <- dada(filtFs, err=errF) # Runs the core sample inference algorithm for 
 dadaRs <- dada(filtRs, err=errR) # Runs the core sample inference algorithm for DADA2 and puts it into a named dadaF object.
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE) # Merges the forward and reverse reads for use down the pipeline
 head(mergers[[1]]) # Print the mergers to confirm they worked
-seqtab <- makeSequenceTable(dadaFs) # Sets up the ASV table
+seqtab <- makeSequenceTable(mergers) # Sets up the ASV table
 dim(seqtab) # Give dimentions
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", verbose=TRUE) # Runs the Chimeric sequence removal software within DADA2
 dim(seqtab.nochim) # Give dimentions
